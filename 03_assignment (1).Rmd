@@ -127,7 +127,7 @@ rf_explain <-
 
 1. Choose 3 new observations and do the following for each observation: 
 
-First Observation: 
+##First Observation: 
 ```{r}
 obs_1 <- house_testing %>% slice(5375) 
 ```
@@ -185,7 +185,7 @@ plot(lime_rf) +
 > The local model prediction is really close to the original prediction. The overall performance of the model is 0.25, the original prediction is of about 5.7935. The most important variables by weight are latitude and grade. 
 
 
-Second Observation: 
+##Second Observation: 
 ```{r}
 obs_2 <- house_testing %>% slice(5376) 
 ```
@@ -198,6 +198,105 @@ pp_rf <- predict_parts(explainer = rf_explain,
 # Break-down plot
 plot(pp_rf)
 ```
+
+> The variables that contribute the most are latitude, grade and square foot living. The graph shows that the predicted value is 5.665, when the model is applied to the training data. The latitude fixed at 47.34 contributes -0.16 to the average predicted score. Overall, the coefficients represent the contribution of the different values fixed to the predicted score. 
+
+```{r}
+rf_shap <-predict_parts(explainer = rf_explain,
+                        new_observation = obs_2,
+                        type = "shap",
+                        B = 10 #number of reorderings - start small
+)
+
+plot(rf_shap)
+```
+
+>The bars show the average contribution of each variable's fixed value to the predictions for this observation. The values for each variable's contribution are different than those in the break-down plot. In this case we can see the variation across permutations through the boxplots. The variation allows us to say that our estimations for sqft_living15, zipcode, and longitude aren't exact. 
+
+```{r}
+set.seed(2)
+
+
+model_type.dalex_explainer <- DALEXtra::model_type.dalex_explainer
+predict_model.dalex_explainer <- DALEXtra::predict_model.dalex_explainer
+
+lime_rf <- predict_surrogate(explainer = rf_explain,
+                             new_observation = obs_2 %>%
+                               select(-log_price), 
+                             n_features = 5,
+                             n_permutations = 1000,
+                             type = "lime")
+
+lime_rf %>% 
+  select(model_r2, model_prediction, prediction) %>% 
+  distinct()
+
+```
+
+```{r}
+plot(lime_rf) +
+  labs(x = "Variable")
+```
+
+> The local model prediction is relatively close to the original prediction. The overall performance of the model is 0.6, the original prediction is of about 5.62029. The most important variables by weight are latitude and sqft_living. 
+
+
+##Third Observation: 
+```{r}
+obs_3 <- house_testing %>% slice(5380) 
+```
+
+```{r}
+pp_rf <- predict_parts(explainer = rf_explain,
+                       new_observation = obs_3,
+                       type = "break_down")
+
+# Break-down plot
+plot(pp_rf)
+```
+
+> The variables that contribute the most are grade, latitude, and sqft_living. The graph shows that the predicted value is 5.665 when the model is applied to the training data. Then grade fixed at 9 contributes 0.104 to the average predicted score. Overall, the coefficients represent the contribution of the different values fixed to the predicted score. 
+
+```{r}
+rf_shap <-predict_parts(explainer = rf_explain,
+                        new_observation = obs_3,
+                        type = "shap",
+                        B = 10 #number of reorderings - start small
+)
+
+plot(rf_shap)
+```
+
+>The bars show the average contribution of each variable's fixed value to the predictions for this observation. The values for each variable's contribution are different to the break-down plot. We can see the variation across permutations through the boxplots. The variation allows us to say that our estimations of the effect aren't exact for year built, and bathrooms considering that it has negative and positive values. 
+
+```{r}
+set.seed(2)
+
+
+model_type.dalex_explainer <- DALEXtra::model_type.dalex_explainer
+predict_model.dalex_explainer <- DALEXtra::predict_model.dalex_explainer
+
+lime_rf <- predict_surrogate(explainer = rf_explain,
+                             new_observation = obs_3 %>%
+                               select(-log_price), 
+                             n_features = 5,
+                             n_permutations = 1000,
+                             type = "lime")
+
+lime_rf %>% 
+  select(model_r2, model_prediction, prediction) %>% 
+  distinct()
+
+```
+
+```{r}
+plot(lime_rf) +
+  labs(x = "Variable")
+```
+
+> The local model prediction is relatively close to the original prediction. The overall performance of the model is 0.47, the original prediction is of about 5.954794. The most important variables by weight are sqft_living, latitude and grade = 10. 
+
+
 
   - Construct a break-down plot using the default ordering. Interpret the resulting graph. Which variables contribute most to each observation's prediction?  
   - Construct a SHAP graph and interpret it. Does it tell a similar story to the break-down plot?  
