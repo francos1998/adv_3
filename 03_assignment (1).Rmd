@@ -304,6 +304,8 @@ plot(lime_rf) +
   
 2. Describe how you would use the interpretable machine learning tools we've learned (both local and global) in future machine learning projects? How does each of them help you?
 
+>Local machine learning tools will help us understand how different inputs affect our predictions, enabling us to draw more causal relations. Global interpretability tools will enable us to understand the structure and parameters of a model illuminating its mechanisms and understanding the flaws of our models. 
+
 ## SQL
 
 You will use the `airlines` data from the SQL database that I used in the example in the [tutorial](https://advanced-ds-in-r.netlify.app/posts/2021-03-29-sqlinr/). Be sure to include the chunk to connect to the database here. And, when you are finished, disconnect. You may need to reconnect throughout as it times out after a while.
