@@ -310,9 +310,66 @@ plot(lime_rf) +
 
 You will use the `airlines` data from the SQL database that I used in the example in the [tutorial](https://advanced-ds-in-r.netlify.app/posts/2021-03-29-sqlinr/). Be sure to include the chunk to connect to the database here. And, when you are finished, disconnect. You may need to reconnect throughout as it times out after a while.
 
+
+```{r}
+con_air <- dbConnect_scidb("airlines")
+```
+
+```{r}
+dbListTables(con_air)
+```
+
+```{sql connection= con_air}
+SHOW TABLES;
+
+```
+
+
+```{r}
+dbListFields(con_air, "flights")
+dbListFields(con_air, "airports")
+dbListFields(con_air, "carriers")
+dbListFields(con_air, "planes")
+```
+
 **Tasks**:
 
-1. Create a SQL chunk and an equivalent R code chunk that does the following: for each airport (with its name, not code), year, and month find the total number of departing flights, the distinct destinations to which they flew, the average length of the flight, the average distance of the flight, and the proportion of flights that arrived more than 20 minutes late. In the R code chunk, write this out to a dataset. (HINT: 1. start small! 2. you may want to do the R part first and use it to "cheat" into the SQL code).  
+1. Create a SQL chunk and an equivalent R code chunk that does the following:
+for each airport (with its name, not code), year, and month
+  find the total number of departing flights, 
+  the distinct destinations to which they flew, 
+  the average length of the flight,
+  the average distance of the flight, 
+  and the proportion of flights that arrived more than 20 minutes late.
+  In the R code chunk, write this out to a dataset. (HINT: 1. start small! 2. you may want to do the R part first and use it to "cheat" into the SQL code).  
+
+```{r}
+
+```
+
+```{sql connection=con_air}
+SELECT *
+FROM flights
+LIMIT 20;
+
+```
+
+
+```{sql connection=con_air}
+GROUP BY `year`
+SELECT
+  COUNT(*) as `num_deps`,
+FROM `flights`
+
+
+```
+
+
+```{r}
+dbListFields(con_air, "flights")
+```
+
+
   - With the dataset you wrote out, create a graph that helps illustrate the "worst" airports in terms of late arrivals. You have some freedom in how you define worst and you may want to consider some of the other variables you computed. Do some theming to make your graph look glamorous (those of you who weren't in my intro data science class this year may want to watch Will Chase's [Glamour of Graphics](https://www.youtube.com/watch?v=h5cTacaWE6I) talk for inspiration).  
   - Although your graph was truly inspirational, you've been requested to "boil it down to a few numbers." Some people just don't appreciate all that effort you put in. And, you need to use the already summarized data that you already pulled in from SQL. Create a table with 6 or fewer rows and 3 or fewer columns that summarizes which airport is the "worst" in terms of late arrivals. Be careful with your calculations. You may consider using the `kable`, `kableExtra`, or `gt` packages to make your table look truly spectacular.
   
@@ -333,6 +390,65 @@ Using the example from class that we presented as a baseline (or your own if you
 4.	Change the coordinates of the map to zoom in on your favorite state.
 
 Hint: https://www.r-spatial.org/r/2018/10/25/ggplot2-sf-2.html is a useful reference for some of the questions
+
+```{r}
+states <- st_as_sf(maps::map("state", 
+plot = FALSE, 
+fill = TRUE))
+head(states)
+```
+```{r}
+states <- states %>%
+  mutate(area = as.numeric(st_area(states)))
+```
+
+```{r}
+states <- cbind(states, st_coordinates(st_centroid(states)))
+```
+
+
+```{r}
+ggplot(data = states) +
+  geom_sf(aes(fill = area)) +
+  coord_sf(xlim = c(-127, -63),
+             ylim = c(24, 51), 
+             expand = FALSE)+
+  geom_point(aes(x = X, y = Y), size = 4, shape = 25, fill = "darkred")+
+  scale_fill_viridis_c(option = "inferno")
+  
+```
+
+```{r}
+counties <- st_as_sf(map("county", plot = FALSE, fill = TRUE)) 
+
+counties <- counties %>%
+  mutate(area = as.numeric(st_area(counties)))
+
+```
+
+```{r}
+ggplot(data = states) +
+  geom_sf(aes(fill = area)) +
+  geom_sf(data = counties, aes(fill = area))+
+  coord_sf(xlim = c(-127, -63),
+             ylim = c(24, 51), 
+             expand = FALSE)+
+  geom_point(aes(x = X, y = Y), size = 4, shape = 25, fill = "darkred")+
+  scale_fill_viridis_c(option = "inferno")
+```
+
+```{r}
+ggplot(data = states) +
+  geom_sf(aes(fill = area)) +
+  geom_sf(data = counties, aes(fill = area))+
+  coord_sf(xlim = c(-96.4, -89.5),
+             ylim = c(43.5, 51), 
+             expand = FALSE)+
+  geom_point(aes(x = X, y = Y), size = 4, shape = 25, fill = "darkred")+
+  scale_fill_viridis_c(option = "inferno")
+```
+
+>It's Minnesota. 
 
 **`tidytext` tasks**:
 
@@ -471,6 +587,8 @@ Read the project description on the moodle page. Talk to your group members abou
 **Task:**
 
 Write a short paragraph about ideas you have. If you already have some data sources in mind, you can link to those, but I'm more concerned with you having a topic that you're interested in investigating right now. 
+
+>We are interested in exploring the rental market of different pl
 
 ## "Undoing" bias
 
