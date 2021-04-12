@@ -332,47 +332,157 @@ dbListFields(con_air, "carriers")
 dbListFields(con_air, "planes")
 ```
 
+```{sql connection= con_air}
+SELECT * 
+FROM flights 
+WHERE year=2017
+LIMIT 20;
+```
+
+
 **Tasks**:
 
-1. Create a SQL chunk and an equivalent R code chunk that does the following:
-for each airport (with its name, not code), year, and month
-  find the total number of departing flights, 
-  the distinct destinations to which they flew, 
-  the average length of the flight,
-  the average distance of the flight, 
-  and the proportion of flights that arrived more than 20 minutes late.
-  In the R code chunk, write this out to a dataset. (HINT: 1. start small! 2. you may want to do the R part first and use it to "cheat" into the SQL code).  
+1. Create a SQL chunk and an equivalent R code chunk that does the following: for 2017 , for each airport (with its name, not code), and month find the total number of departing flights, the average distance of the flight, and the proportion of flights that arrived more than 20 minutes late. In the R code chunk, write this out to a dataset. (HINT: 1. start small! 2. you may want to do the R part first and use it to "cheat" into the SQL code).  .  
 
 ```{r}
+small_query <- 
+  tbl(con_air,
+      sql("
+          SELECT * 
+          FROM flights 
+          WHERE year=2017
+          LIMIT 1000000
+          ")
+      )
+
+small_query
+```
+```{r}
+small_query %>% 
+  filter(year == "2017") %>% 
+  group_by(month, origin) %>% 
+  summarize(count = count(flight),
+            avg_distance = mean(distance),
+            prop_20_late = mean(arr_delay>20)) 
 
 ```
 
-```{sql connection=con_air}
-SELECT *
-FROM flights
-LIMIT 20;
-
-```
-
 
 ```{sql connection=con_air}
-GROUP BY `year`
 SELECT
-  COUNT(*) as `num_deps`,
-FROM `flights`
+  carrier,
+  month,
+  origin,
+  COUNT(*) AS n_departures,
+  AVG(distance) AS mean_dist,
+  AVG(arr_delay>20) AS prop_20_late
+FROM (SELECT * FROM flights WHERE year=2017 LIMIT 1000000) fl
+GROUP BY month, origin;
+  
 
 
 ```
 
 
-```{r}
-dbListFields(con_air, "flights")
+```{sql connection=con_air}
+SELECT
+  month,
+  n_departures,
+  mean_dist,
+  prop_20_late,
+  name
+FROM(SELECT
+  carrier,
+  month,
+  origin,
+  COUNT(*) AS n_departures,
+  AVG(`distance`) AS mean_dist,
+  AVG(arr_delay>20) AS prop_20_late
+FROM (SELECT * FROM flights WHERE year=2017 LIMIT 10000) fl
+GROUP BY month, origin) smry
+INNER JOIN airports AS a 
+  ON (smry.origin = a.faa)
 ```
 
 
   - With the dataset you wrote out, create a graph that helps illustrate the "worst" airports in terms of late arrivals. You have some freedom in how you define worst and you may want to consider some of the other variables you computed. Do some theming to make your graph look glamorous (those of you who weren't in my intro data science class this year may want to watch Will Chase's [Glamour of Graphics](https://www.youtube.com/watch?v=h5cTacaWE6I) talk for inspiration).  
-  - Although your graph was truly inspirational, you've been requested to "boil it down to a few numbers." Some people just don't appreciate all that effort you put in. And, you need to use the already summarized data that you already pulled in from SQL. Create a table with 6 or fewer rows and 3 or fewer columns that summarizes which airport is the "worst" in terms of late arrivals. Be careful with your calculations. You may consider using the `kable`, `kableExtra`, or `gt` packages to make your table look truly spectacular.
   
+```{r}
+processed_data <- 
+  tbl(con_air,
+      sql("
+          SELECT
+            month,
+            n_departures,
+            mean_dist,
+            prop_20_late,
+            name
+          FROM(SELECT
+            carrier,
+            month,
+            origin,
+          COUNT(*) AS n_departures,
+          AVG(`distance`) AS mean_dist,
+          AVG(arr_delay>20) AS prop_20_late
+          FROM (SELECT * FROM flights WHERE year=2017 LIMIT 10000) fl
+          GROUP BY month, origin) smry
+          INNER JOIN airports AS a 
+            ON (smry.origin = a.faa)
+          ")
+      )
+
+processed_data
+```
+  
+```{r}
+processed_df <- collect(processed_data)
+top20 <- processed_df %>% 
+  arrange(desc(n_departures)) %>% 
+  head(20)
+top20
+```
+  
+```{r, fig_height = 20}
+top20%>% 
+  ggplot(aes(x = prop_20_late,
+             y = fct_reorder(name, prop_20_late)))+
+  geom_col(fill = "orange")+
+  scale_x_continuous(expand = c(0,0), 
+                     labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       caption = "Franco Salinas",
+       title = "Which airlines that had the most number of \ndepartures had a largest % of flights that \nwere more than 20 minutes late in 2017?") +
+  theme_minimal()
+```
+  
+  
+  
+  - Although your graph was truly inspirational, you've been requested to "boil it down to a few numbers." Some people just don't appreciate all that effort you put in. And, you need to use the already summarized data that you already pulled in from SQL. Create a table with 6 or fewer rows and 3 or fewer columns that summarizes which airport is the "worst" in terms of late arrivals. Be careful with your calculations. You may consider using the `kable`, `kableExtra`, or `gt` packages to make your table look truly spectacular.
+
+```{r}
+library(gt) 
+top20 %>% 
+  rename(`Number of departures` = n_departures, 
+         `% more than 20 min late` = prop_20_late, 
+         `Airport Name` = name) %>% 
+  head(6) %>% 
+  select(-month, -mean_dist) %>% 
+  gt() %>% 
+  fmt_percent(columns = vars(`% more than 20 min late`))%>% 
+  tab_header(
+    title = "Worst airports in terms of late arrivals",
+    subtitle = md("Which airlines that had the most number of \ndepartures had a largest % of flights that \nwere more than 20 minutes late in 2017?")
+  )%>% 
+  tab_options(column_labels.font.size = 15,
+              heading.background.color = "White",
+              table.background.color = "gray",
+              column_labels.background.color = "darkred")
+```
+
+
+
+
 2. Come up with your own interesting question that data in the airlines database can help you answer. Write a SQL query and equivalent R code chunk to extract the data you need and create an elegant graph to help answer the question. Be sure to write down the question so it is clear. 
 
 
@@ -476,7 +586,7 @@ Because there are 12 datasets containing 2,973,371 tweets sent by 2,848 Twitter 
 
 1. Read in Troll Tweets Dataset - this takes a while. You can cache it so you don't need to read it in again each time you knit. Be sure to remove the `eval=FALSE`!!!!
 
-```{r, cache=TRUE, eval=FALSE}
+```{r, cache=TRUE, cache=TRUE}
 troll_tweets <- read_csv("https://raw.githubusercontent.com/fivethirtyeight/russian-troll-tweets/master/IRAhandle_tweets_12.csv")
 ```
 
@@ -487,16 +597,41 @@ troll_tweets <- read_csv("https://raw.githubusercontent.com/fivethirtyeight/russ
   c. Create two or three basic exploratory plots of the data (ex. plot of the different locations from which tweets were posted, plot of the account category of a tweet)
   
 ```{r}
+troll_tweets_eng <- troll_tweets %>% 
+  filter(language == "English")
+```
 
+```{r}
+dim(troll_tweets_eng)
+```
+
+```{r}
+troll_tweets_eng %>% 
+  count(region) %>% 
+  ggplot(aes(y = region, x = n))+
+  geom_col()
+```
+
+```{r}
+troll_tweets_eng %>% 
+  ggplot(aes(x = followers))+
+  geom_histogram()
+```
+
+```{r}
+troll_tweets_eng %>% 
+  count(account_category) %>% 
+  ggplot(aes(y = account_category, x = n))+
+  geom_col()
 ```
 
 3. Unnest Tokens
 
 We want each row to represent a word from a tweet, rather than an entire tweet. Be sure to remove the `eval=FALSE`!!!!
 
-```{r, eval = FALSE}
-troll_tweets_untoken <- troll_tweets1 %>%
-  unnest_tokens(???,???)
+```{r, cache = TRUE}
+troll_tweets_untoken <- troll_tweets_eng %>%
+  unnest_tokens(word,content)
 
 troll_tweets_untoken
 ```
@@ -506,18 +641,20 @@ troll_tweets_untoken
 
 4. Remove stopwords. Be sure to remove the `eval=FALSE`!!!!
 
-```{r, eval = FALSE}
+```{r}
+library(tidytext)
+head(stop_words)
 #get rid of stopwords (the, and, etc.)
-troll_tweets_cleaned <- troll_tweets_untoken %>%
+clean_troll_tweets <- troll_tweets_untoken %>%
   anti_join(stop_words)
 ```
 
 Take a look at the troll_tweets_cleaned dataset.  Are there any other words/letters/numbers that we want to eliminate that weren't taken care of by stop_words? Be sure to remove the `eval=FALSE`!!!!
 
-```{r, eval = FALSE}
+```{r}
 #get rid of http, https, t.co, rt, amp, single number digits, and singular letters
 troll_tweets_cleaned <- troll_tweets_cleaned %>%
-  filter(word != ????) # you can use %in% for a list of words
+  filter(word != 'http', word != 'https', word != 't.co', word != 'rt', word != 'amp', word != '1',word != '2', word != '3', word != '4', word != '5', word != '6', word != '7', word != '8', word != '9', !(word %in%letters)) 
 ```
 
 
@@ -525,7 +662,7 @@ troll_tweets_cleaned <- troll_tweets_cleaned %>%
 
 ```{r, eval = FALSE}
 troll_tweets_small <- troll_tweets_cleaned %>%
-  count(??) %>%
+  count(word) %>%
   slice_max(order_by = n, n = 50) # 50 most occurring words
 
 # visualize the number of times the 50 top words appear
@@ -544,15 +681,15 @@ Be sure to remove the `eval=FALSE`!!!!
 
 ```{r, eval = FALSE}
 # look at sentiment
-get_sentiments("bing")
+sentiments <- get_sentiments("bing")
 
 # assign a sentiment to each word that has one associated
-troll_tweets_sentiment <- troll_tweets_cleaned %>%
-  inner_join(???)
+sentiment_troll_tweets <- troll_tweets_cleaned %>%
+  inner_join(sentiments)
 
 # count the sentiments
 troll_tweets_sentiment %>% 
-  ???
+  count(sentiment)
 ```
 
 7. Using the troll_tweets_small dataset, make a wordcloud:
@@ -563,22 +700,24 @@ troll_tweets_sentiment %>%
 
 Be sure to remove the `eval=FALSE`!!!!
 
-```{r, eval = FALSE}
+```{r}
 # make a wordcloud where the size of the word is based on the number of times the word appears across the tweets
 
 troll_tweets_small %>%
-  with(wordcloud(word, n, max.words = ??))
+  count(word) %>% 
+  with(wordcloud(word, n, max.words = 50))
 
 # make a wordcloud colored by sentiment
 
 troll_tweets_sentiment %>%
+  count(word, sentiment, sort = TRUE) %>% 
   acast(word ~ sentiment, value.var = "n", fill = 0) %>%
-  comparison.cloud(colors = c(??,??),
-                   max.words = ??)
+  comparison.cloud(colors = c("red","blue"),
+                   max.words = 50)
 ```
 
 Are there any words whose categorization as "positive" or "negative" surprised you?
-
+>No, but I think that it would be important to consider the context in which those words are used to classify them more accurately. 
 
 ## Projects
 
@@ -588,10 +727,15 @@ Read the project description on the moodle page. Talk to your group members abou
 
 Write a short paragraph about ideas you have. If you already have some data sources in mind, you can link to those, but I'm more concerned with you having a topic that you're interested in investigating right now. 
 
->We are interested in exploring the rental market of different pl
+>We are interested in exploring the 
 
 ## "Undoing" bias
 
 **Task:**
 
 Read this tweet [thread](https://threadreaderapp.com/thread/1375957284061376516.html) by [Deb Raji](https://en.wikipedia.org/wiki/Deborah_Raji) who you may remember from the *Coded Bias* film. Write a short paragraph that discusses at least one of the misconceptions.
+
+>Bias can start anywhere in the system, the system is the result of multiple decisions that can be biased. Selecting and understanding the data isn't the only stage where human judgement filtrates. An example is automation bias, where automation increases the pre-existent biases on decision making. 
+
+
+
