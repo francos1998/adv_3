@@ -481,6 +481,9 @@ top20 %>%
 ```
 
 
+```{r}
+dbDisconnect(con_air)
+```
 
 
 2. Come up with your own interesting question that data in the airlines database can help you answer. Write a SQL query and equivalent R code chunk to extract the data you need and create an elegant graph to help answer the question. Be sure to write down the question so it is clear. 
@@ -586,7 +589,7 @@ Because there are 12 datasets containing 2,973,371 tweets sent by 2,848 Twitter 
 
 1. Read in Troll Tweets Dataset - this takes a while. You can cache it so you don't need to read it in again each time you knit. Be sure to remove the `eval=FALSE`!!!!
 
-```{r, cache=TRUE, cache=TRUE}
+```{r, cache=TRUE}
 troll_tweets <- read_csv("https://raw.githubusercontent.com/fivethirtyeight/russian-troll-tweets/master/IRAhandle_tweets_12.csv")
 ```
 
@@ -609,27 +612,36 @@ dim(troll_tweets_eng)
 troll_tweets_eng %>% 
   count(region) %>% 
   ggplot(aes(y = region, x = n))+
-  geom_col()
+  geom_col()+
+  labs(title = "Regions with higher counts of troll tweets",
+       x = "",
+       y = "")
 ```
 
 ```{r}
 troll_tweets_eng %>% 
   ggplot(aes(x = followers))+
-  geom_histogram()
+  geom_histogram()+
+  labs(title = "Distribution of followers for troll accounts",
+       x = "",
+       y = "")
 ```
 
 ```{r}
 troll_tweets_eng %>% 
   count(account_category) %>% 
   ggplot(aes(y = account_category, x = n))+
-  geom_col()
+  geom_col()+
+  labs(title = "Number of accounts for different account categories",
+       x = "",
+       y = "")
 ```
 
 3. Unnest Tokens
 
 We want each row to represent a word from a tweet, rather than an entire tweet. Be sure to remove the `eval=FALSE`!!!!
 
-```{r, cache = TRUE}
+```{r}
 troll_tweets_untoken <- troll_tweets_eng %>%
   unnest_tokens(word,content)
 
@@ -653,15 +665,15 @@ Take a look at the troll_tweets_cleaned dataset.  Are there any other words/lett
 
 ```{r}
 #get rid of http, https, t.co, rt, amp, single number digits, and singular letters
-troll_tweets_cleaned <- troll_tweets_cleaned %>%
+clean_troll_tweets <- clean_troll_tweets %>%
   filter(word != 'http', word != 'https', word != 't.co', word != 'rt', word != 'amp', word != '1',word != '2', word != '3', word != '4', word != '5', word != '6', word != '7', word != '8', word != '9', !(word %in%letters)) 
 ```
 
 
 5. Look at a subset of the tweets to see how often the top words appear.
 
-```{r, eval = FALSE}
-troll_tweets_small <- troll_tweets_cleaned %>%
+```{r}
+troll_tweets_small <- clean_troll_tweets %>%
   count(word) %>%
   slice_max(order_by = n, n = 50) # 50 most occurring words
 
@@ -679,18 +691,20 @@ ggplot(troll_tweets_small,
   
 Be sure to remove the `eval=FALSE`!!!!
 
-```{r, eval = FALSE}
+```{r}
 # look at sentiment
 sentiments <- get_sentiments("bing")
 
 # assign a sentiment to each word that has one associated
-sentiment_troll_tweets <- troll_tweets_cleaned %>%
+sentiment_troll_tweets <- clean_troll_tweets %>%
   inner_join(sentiments)
 
 # count the sentiments
-troll_tweets_sentiment %>% 
+sentiment_troll_tweets %>% 
   count(sentiment)
 ```
+
+>There are more negative than positive, this is because the tweets are trying to create a bad image for certain sectors. 
 
 7. Using the troll_tweets_small dataset, make a wordcloud:
 
@@ -709,7 +723,7 @@ troll_tweets_small %>%
 
 # make a wordcloud colored by sentiment
 
-troll_tweets_sentiment %>%
+sentiment_troll_tweets %>%
   count(word, sentiment, sort = TRUE) %>% 
   acast(word ~ sentiment, value.var = "n", fill = 0) %>%
   comparison.cloud(colors = c("red","blue"),
@@ -727,7 +741,7 @@ Read the project description on the moodle page. Talk to your group members abou
 
 Write a short paragraph about ideas you have. If you already have some data sources in mind, you can link to those, but I'm more concerned with you having a topic that you're interested in investigating right now. 
 
->We are interested in exploring the 
+>We are interested in exploring the bike ridership effects of COVID. We were also interested in looking at the changes in rental markets for housing during the pandemic. Another topic that we were exploring is diseases prediction models. 
 
 ## "Undoing" bias
 
